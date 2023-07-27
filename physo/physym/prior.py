@@ -11,10 +11,11 @@ from physo.physym import functions as Func
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-class Prior (ABC):
+class Prior(ABC):
     """
     Abstract prior.
     """
+
     def __init__(self, library, programs):
         """
         Parameters
@@ -24,12 +25,12 @@ class Prior (ABC):
         programs : program.VectPrograms
             Programs in the batch.
         """
-        self.lib       = library
-        self.progs     = programs
-        self.get_default_mask_prob = lambda : np.ones((self.progs.batch_size, self.lib.n_choices), dtype = float)
+        self.lib = library
+        self.progs = programs
+        self.get_default_mask_prob = lambda: np.ones((self.progs.batch_size, self.lib.n_choices), dtype=float)
         self.reset_mask_prob()
 
-    def reset_mask_prob (self):
+    def reset_mask_prob(self):
         """
         Resets mask of probabilities to one.
         """
@@ -44,12 +45,13 @@ class Prior (ABC):
         """
         raise NotImplementedError
 
+
 # ----------------------------------------------------------------------------------------------------------------------
 # ------------------------------------------ INDIVIDUAL PRIORS IMPLEMENTATION ------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-class UniformArityPrior (Prior):
+class UniformArityPrior(Prior):
     """
     Uniform probability distribution over tokens by their arities.
     This prior encourages tokens with an arity that is under-represented and discourages tokens with an arity that
@@ -66,13 +68,15 @@ class UniformArityPrior (Prior):
         Prior.__init__(self, library, programs)
         # Number of tokens per arity
         # Sum of tokens having arity = idx on choosable tokens
-        count_arities = np.array ([ (self.lib.get_choosable_prop("arity") == arity).sum() for arity in range (Tok.MAX_ARITY + 1) ])
+        count_arities = np.array([
+            (self.lib.get_choosable_prop("arity") == arity).sum() for arity in range(Tok.MAX_ARITY + 1)
+        ])
         # Uniform mask over arities ie. inverse of total number of tokens per arity for each choosable token arity
         # Mask for one prog
         individual_mask = 1 / count_arities[self.lib.get_choosable_prop("arity")].astype(float)
         # Mask is the same for every program -> tile
         self.reset_mask_prob()
-        self.mask_prob[:,:] = np.tile(individual_mask, (self.progs.batch_size, 1))
+        self.mask_prob[:, :] = np.tile(individual_mask, (self.progs.batch_size, 1))
 
     def __call__(self):
         return self.mask_prob
@@ -81,7 +85,7 @@ class UniformArityPrior (Prior):
         return "UniformArityPrior"
 
 
-class HardLengthPrior (Prior):
+class HardLengthPrior(Prior):
     """
     Forces programs to have lengths such that min_length <= lengths <= max_length finished.
     Enforces lengths <= max_length by forbidding non-terminal tokens when choosing non-terminal tokens would mean
@@ -102,14 +106,18 @@ class HardLengthPrior (Prior):
             Maximum length that programs are allowed to have.
         """
         # Assertions
-        try: min_length = float(min_length)
-        except ValueError: raise TypeError("max_length must be cast-able to a float")
-        try: max_length = float(max_length)
-        except ValueError: raise TypeError("max_length must be cast-able to a float")
+        try:
+            min_length = float(min_length)
+        except ValueError:
+            raise TypeError("max_length must be cast-able to a float")
+        try:
+            max_length = float(max_length)
+        except ValueError:
+            raise TypeError("max_length must be cast-able to a float")
         assert min_length <= programs.max_time_step, "min_length must be such as: min_length <= max_time_step"
         assert max_length <= programs.max_time_step, "max_length must be such as: max_length <= max_time_step"
-        assert max_length >= 1,                      "max_length must be such as: max_length >= 1"
-        assert min_length <= max_length,             "Must be: min_length <= max_length"
+        assert max_length >= 1, "max_length must be such as: max_length >= 1"
+        assert min_length <= max_length, "Must be: min_length <= max_length"
 
         Prior.__init__(self, library, programs)
         # Is token of the library a terminal token : mask
@@ -126,24 +134,26 @@ class HardLengthPrior (Prior):
 
         # --- MAX ---
         # Would library token exceed max length if chosen in next step : mask
-        mask_would_exceed_max = np.add.outer(self.progs.n_completed, self.lib.get_choosable_prop("arity")) > self.max_length
+        mask_would_exceed_max = np.add.outer(self.progs.n_completed,
+                                             self.lib.get_choosable_prop("arity")) > self.max_length
         # Going to reach max length => next token must be terminal => prob for non-terminal must be = 0
-        self.mask_prob[mask_would_exceed_max] *= 0 # = 0 for token exceeding max
+        self.mask_prob[mask_would_exceed_max] *= 0  # = 0 for token exceeding max
 
         # --- MIN ---
         # Progs having only one dummy AND length (including dummies) < min : mask
         # These programs are going to finish at next step if we allow terminal tokens to be chosen.
-        mask_going_to_finish_before_min = np.logical_and(self.progs.n_dangling == 1, self.progs.n_completed < self.min_length)
+        mask_going_to_finish_before_min = np.logical_and(self.progs.n_dangling == 1, self.progs.n_completed
+                                                         < self.min_length)
         # Going to be finished with length < min length => next token must be non-terminal => prob for terminal must be = 0
         mask_would_be_inferior_to_min = np.outer(mask_going_to_finish_before_min, self.mask_lib_is_terminal)
-        self.mask_prob[mask_would_be_inferior_to_min] *= 0 # = 0 for terminal
+        self.mask_prob[mask_would_be_inferior_to_min] *= 0  # = 0 for terminal
         return self.mask_prob
 
     def __repr__(self):
-        return "HardLengthPrior (min_length = %i, max_length = %i)"%(self.min_length, self.max_length)
+        return "HardLengthPrior (min_length = %i, max_length = %i)" % (self.min_length, self.max_length)
 
 
-class SoftLengthPrior (Prior):
+class SoftLengthPrior(Prior):
     """
     Soft prior that encourages programs to have a length close to length_loc.
     Before loc: scales terminal token probabilities by gaussian where dangling == 1 (ie. programs that might finish
@@ -162,20 +172,24 @@ class SoftLengthPrior (Prior):
             Scale of gaussian used as  prior.
         """
         # Assertions
-        try: length_loc = float(length_loc)
-        except ValueError:" length_loc must be cast-able to a float"
-        try: scale = float(scale)
-        except ValueError:" scale must be cast-able to a float"
+        try:
+            length_loc = float(length_loc)
+        except ValueError:
+            " length_loc must be cast-able to a float"
+        try:
+            scale = float(scale)
+        except ValueError:
+            " scale must be cast-able to a float"
 
         Prior.__init__(self, library, programs)
         # If we want length = 3, gaussian value must be max at step = 2 (ie. when generating token n°3)
         self.length_loc = length_loc
         # => step_loc = length_loc - 1
         self.step_loc = float(self.length_loc) - 1
-        self.scale    = float(scale)
+        self.scale = float(scale)
         # Value of gaussian at all steps
-        steps = np.arange(0, self.progs.max_time_step + 1) # gaussian_vals[step_loc] = gaussian_vals[steps[step_loc]]
-        self.gaussian_vals = np.exp(-(steps - self.step_loc) ** 2 / (2 * self.scale))
+        steps = np.arange(0, self.progs.max_time_step + 1)  # gaussian_vals[step_loc] = gaussian_vals[steps[step_loc]]
+        self.gaussian_vals = np.exp(-(steps - self.step_loc)**2 / (2 * self.scale))
         # Is token of the library a terminal token : mask
         terminal_arity = 0
         self.mask_lib_is_terminal = (self.lib.get_choosable_prop("arity") == terminal_arity)
@@ -198,10 +212,10 @@ class SoftLengthPrior (Prior):
         return self.mask_prob
 
     def __repr__(self):
-        return "SoftLengthPrior (length_loc = %i, scale = %i)"%(self.length_loc, self.scale)
+        return "SoftLengthPrior (length_loc = %i, scale = %i)" % (self.length_loc, self.scale)
 
 
-class RelationshipConstraintPrior (Prior):
+class RelationshipConstraintPrior(Prior):
     """
     Forces programs to comply with relationships constraints. Enforcing that [targets] cannot be the [relationship] of
     [effectors].  Where targets are choosable tokens for the current batch, effectors are already chosen tokens having
@@ -210,7 +224,8 @@ class RelationshipConstraintPrior (Prior):
     Eg. effectors = ["sin", "n2", "exp"], relationship = "child", targets = ["cos", "sqrt", "log"] forbids cos from
     being the child of sin, sqrt from being the child of n2 and log from being the child of exp.
     """
-    def __init__(self, library, programs, effectors, relationship, targets, max_nb_violations = None):
+
+    def __init__(self, library, programs, effectors, relationship, targets, max_nb_violations=None):
         """
         Enforcing that [targets] cannot be the [relationship] of [effectors].
         Parameters
@@ -239,7 +254,7 @@ class RelationshipConstraintPrior (Prior):
 
         # effectors argument ---
         effectors = np.array(effectors)
-        err_msg = "Argument effectors should be a list of strings, not %s."%(effectors)
+        err_msg = "Argument effectors should be a list of strings, not %s." % (effectors)
         assert len(effectors.shape) == 1 and effectors.dtype.char == "U", err_msg
         err_msg = "Some tokens given in argument effectors: %s are not in the library of tokens: %s" \
                   % (effectors, library.lib_name)
@@ -259,7 +274,7 @@ class RelationshipConstraintPrior (Prior):
 
         # max_nb_violations argument ---
         if max_nb_violations is None:
-            max_nb_violations = np.zeros(shape = (len(effectors),), dtype = int)
+            max_nb_violations = np.zeros(shape=(len(effectors),), dtype=int)
         max_nb_violations = np.array(max_nb_violations)
         err_msg = "Argument max_nb_violations should be a list of positive integers having the same size as " \
                   "effectors and targets lists."
@@ -272,18 +287,20 @@ class RelationshipConstraintPrior (Prior):
         Prior.__init__(self, library, programs)
 
         # relationship ---
-        inverse_relationships = {'descendant' : 'ancestor',
-                                    'child'      : 'parent'  ,
-                                    'sibling'    : 'sibling' , }
+        inverse_relationships = {
+            'descendant': 'ancestor',
+            'child': 'parent',
+            'sibling': 'sibling',
+        }
         # Enforcing that [targets] can not be the [targets_role] of [effectors]
         # ie. enforcing that [effectors] can not be the [effectors_role] of [targets]
-        self.targets_role   = relationship
+        self.targets_role = relationship
         self.effectors_role = inverse_relationships[relationship]
 
         # targets and effectors ---
         # Working with tokens' idx in the library instead of their name
-        self.effectors     = np.array([self.lib.lib_name_to_idx[tok_name] for tok_name in effectors])
-        self.targets       = np.array([self.lib.lib_name_to_idx[tok_name] for tok_name in targets  ])
+        self.effectors = np.array([self.lib.lib_name_to_idx[tok_name] for tok_name in effectors])
+        self.targets = np.array([self.lib.lib_name_to_idx[tok_name] for tok_name in targets])
         self.n_constraints = len(self.targets)
 
         # max_nb_violations argument ---
@@ -292,38 +309,44 @@ class RelationshipConstraintPrior (Prior):
         # ----HANDLING RELATIONSHIP VARIATIONS  ----
 
         # Max number of relatives that can be [effectors_role] of tokens to be chosen.
-        max_n_relatives_dict = {'ancestor' : self.progs.max_time_step,
-                                'parent'   : 1,
-                                'sibling'  : 1}
+        max_n_relatives_dict = {'ancestor': self.progs.max_time_step, 'parent': 1, 'sibling': 1}
         self.max_n_relatives = max_n_relatives_dict[self.effectors_role]
         # Method of programs returning [effectors_role] of token at step (and filling non-existing relatives with
         # self.lib.invalid_idx). Adding new axis when necessary for problem symmetry.
         get_relatives_idx_dict = {
-            'ancestor' : lambda step: self.progs.get_ancestors_idx_of_step (step, no_ancestor_idx_filler = self.lib.invalid_idx),                 # Returns (batch_size, max_n_relatives)
-            'parent'   : lambda step: self.progs.get_parent_idx_of_step    (step, no_parent_idx_filler   = self.lib.invalid_idx)[:, np.newaxis],  # Returns (batch_size, 1)
-            'sibling'  : lambda step: self.progs.get_sibling_idx_of_step   (step, no_sibling_idx_filler  = self.lib.invalid_idx)[:, np.newaxis],  # Returns (batch_size, 1)
-                              }
-        self.get_relatives_idx = get_relatives_idx_dict[self.effectors_role]                            # Returns (batch_size, max_n_relatives)
+            'ancestor':
+                lambda step: self.progs.get_ancestors_idx_of_step(step, no_ancestor_idx_filler=self.lib.invalid_idx
+                                                                 ),  # Returns (batch_size, max_n_relatives)
+            'parent':
+                lambda step: self.progs.get_parent_idx_of_step(step, no_parent_idx_filler=self.lib.invalid_idx)
+                [:, np.newaxis],  # Returns (batch_size, 1)
+            'sibling':
+                lambda step: self.progs.get_sibling_idx_of_step(step, no_sibling_idx_filler=self.lib.invalid_idx)
+                [:, np.newaxis],  # Returns (batch_size, 1)
+        }
+        self.get_relatives_idx = get_relatives_idx_dict[self.effectors_role]  # Returns (batch_size, max_n_relatives)
 
         # -------- CONSTRAINTS MASK  --------
 
         # Is relationship allowed between effectors and targets : mask
         # Shape = ( number of possible effectors (including : superparent, dummy and invalid token)
         # vs number of possible targets (ie choosable tokens only) )
-        self.mask_constraints = np.ones(shape = (self.lib.n_library, self.lib.n_choices), dtype = float) # (lib.n_library, lib.n_choices)
+        self.mask_constraints = np.ones(shape=(self.lib.n_library, self.lib.n_choices),
+                                        dtype=float)  # (lib.n_library, lib.n_choices)
 
         # Put 0 weights on forbidden relationships
-        self.mask_constraints[(self.effectors, self.targets)] = 0                                        # (n_constraints,)
+        self.mask_constraints[(self.effectors, self.targets)] = 0  # (n_constraints,)
 
         # -------- MAX VIOLATIONS COUNT  --------
 
         # Used for multiple relatives cases (eg. ancestors) but not single relatives cases (eg. parent, sibling)
         # Matrix of relationships (similar shape as mask_constraints) containing max number of violations tolerated
         # for each relationship.
-        self.count_max_violations = np.full(shape = (self.lib.n_library, self.lib.n_choices),              # (lib.n_library, lib.n_choices)
-                                            fill_value = self.max_n_relatives,
-                                            dtype = float)
-        self.count_max_violations[(self.effectors, self.targets)] = self.max_nb_violations                 # (n_constraints,)
+        self.count_max_violations = np.full(
+            shape=(self.lib.n_library, self.lib.n_choices),  # (lib.n_library, lib.n_choices)
+            fill_value=self.max_n_relatives,
+            dtype=float)
+        self.count_max_violations[(self.effectors, self.targets)] = self.max_nb_violations  # (n_constraints,)
 
     def __call__(self):
 
@@ -352,14 +375,21 @@ class RelationshipConstraintPrior (Prior):
         relatives_idx = self.get_relatives_idx(step=self.progs.curr_step)  # (batch_size, max_n_relatives)
 
         # Counts of relatives in a complete lib (including dummy, invalid etc.) size vector for each prog of batch
-        counts_relatives = self.progs.count_tokens_idx(relatives_idx)                                                # (batch_size, lib.n_library)
+        counts_relatives = self.progs.count_tokens_idx(relatives_idx)  # (batch_size, lib.n_library)
         # Tile of this count along a new n_choices size dimension for each prog in batch
-        tile_counts = np.moveaxis(np.tile(counts_relatives,                                                          # (batch_size, lib.n_library, lib.n_choices,)
-                                  reps=(self.lib.n_choices, 1, 1)), source=(1,2), destination=(0,1))
+        tile_counts = np.moveaxis(
+            np.tile(
+                counts_relatives,  # (batch_size, lib.n_library, lib.n_choices,)
+                reps=(self.lib.n_choices, 1, 1)),
+            source=(1, 2),
+            destination=(0, 1))
         # Tile of general relationship counts constraints along a new batch_size dim
-        tile_count_max_violations = np.tile(self.count_max_violations, reps=(self.progs.batch_size, 1, 1))           # (batch_size, lib.n_library, lib.n_choices,)
+        tile_count_max_violations = np.tile(self.count_max_violations,
+                                            reps=(self.progs.batch_size, 1,
+                                                  1))  # (batch_size, lib.n_library, lib.n_choices,)
         # Would max number of violations be respected if choosing token in lib.n_choices dim
-        mask_max_violations_respected = (tile_counts <= tile_count_max_violations)                                   # (batch_size, lib.n_library, lib.n_choices,)
+        mask_max_violations_respected = (tile_counts
+                                         <= tile_count_max_violations)  # (batch_size, lib.n_library, lib.n_choices,)
         mask_prob = mask_max_violations_respected.prod(axis=1)
 
         return mask_prob
@@ -374,12 +404,18 @@ class RelationshipConstraintPrior (Prior):
                % (self.lib.lib_name[self.targets], self.targets_role, self.lib.lib_name[self.effectors])
         return repr
 
+
 class NoUselessInversePrior(Prior):
     """
     Forbids useless inverse sequences. Enforcing that op can not be the child of op^(-1) and that op^(-1) can not be
     the child of op for all op having an inverse op^(-1) listed in functions.INVERSE_OP_DICT.
     """
-    def __init__(self, library, programs,):
+
+    def __init__(
+        self,
+        library,
+        programs,
+    ):
         """
         Enforcing functions are not child of their inverse function.
         Parameters
@@ -391,13 +427,13 @@ class NoUselessInversePrior(Prior):
 
         # Considering (function, inverse function) couples where both tokens are in library
         effectors = []
-        targets   = []
+        targets = []
         for func_name, inverse_func_name in Func.INVERSE_OP_DICT.items():
             if func_name in self.lib.lib_name and inverse_func_name in self.lib.lib_name:
-                effectors.append (func_name       )
-                targets  .append (inverse_func_name )
-        self.effectors    = effectors
-        self.targets      = targets
+                effectors.append(func_name)
+                targets.append(inverse_func_name)
+        self.effectors = effectors
+        self.targets = targets
         self.relationship = "child"
 
         # Is this prior active
@@ -410,14 +446,17 @@ class NoUselessInversePrior(Prior):
         # Using RelationshipConstraintPrior prior
         # Enforcing that [targets] cannot be the [relationship] of [effectors]
         else:
-            self.prior = RelationshipConstraintPrior (library = self.lib, programs = self.progs,
-                                          targets      = self.targets,
-                                          relationship = self.relationship,
-                                          effectors    = self.effectors,)
+            self.prior = RelationshipConstraintPrior(
+                library=self.lib,
+                programs=self.progs,
+                targets=self.targets,
+                relationship=self.relationship,
+                effectors=self.effectors,
+            )
 
     def __call__(self):
         if self.active:
-            mask_prob = self.prior()              # (batch_size, lib.n_choices)
+            mask_prob = self.prior()  # (batch_size, lib.n_choices)
         else:
             mask_prob = self.get_default_mask_prob()  # (batch_size, lib.n_choices)
         return mask_prob
@@ -428,12 +467,13 @@ class NoUselessInversePrior(Prior):
         return repr
 
 
-class NestedFunctions (Prior):
+class NestedFunctions(Prior):
     """
     Regulates nesting for a group of tokens. Enforcing that any token in [functions] can only have up to [max_nesting]
     ancestors listed in [functions].
     """
-    def __init__(self, library, programs, functions, max_nesting = 1):
+
+    def __init__(self, library, programs, functions, max_nesting=1):
         """
         Enforcing that [functions] can not be nested or only up to max_nesting level.
         Parameters
@@ -449,7 +489,7 @@ class NestedFunctions (Prior):
 
         # functions argument ---
         functions = np.array(functions)
-        err_msg = "Argument functions should be a list of strings, not %s."%(functions)
+        err_msg = "Argument functions should be a list of strings, not %s." % (functions)
         assert len(functions.shape) == 1 and functions.dtype.char == "U", err_msg
         err_msg = "Some tokens given in argument functions: %s are not in the library of tokens: %s" \
                   % (functions, library.lib_name)
@@ -478,37 +518,37 @@ class NestedFunctions (Prior):
 
         # Method of programs returning ancestors of token at step (and filling non-existing relatives with
         # self.lib.invalid_idx).
-        self.get_ancestors_idx = lambda step: self.progs.get_ancestors_idx_of_step (
-            step, no_ancestor_idx_filler = self.lib.invalid_idx)               # Returns (batch_size, max_n_ancestors)
+        self.get_ancestors_idx = lambda step: self.progs.get_ancestors_idx_of_step(
+            step, no_ancestor_idx_filler=self.lib.invalid_idx)  # Returns (batch_size, max_n_ancestors)
 
         # ---- PRIOR TEMPLATES ----
 
         # Vector of prior for one prog : no restrictions for next token choice
-        allow_all_prior = np.ones(shape=self.lib.n_choices, dtype=float)                                                 # (lib.n_choices)
+        allow_all_prior = np.ones(shape=self.lib.n_choices, dtype=float)  # (lib.n_choices)
 
         # Vector of prior for one prog : forbidding [functions] for next token choice
-        forbid_functions_prior = np.ones(shape=self.lib.n_choices, dtype=float)                                          # (lib.n_choices)
-        forbid_functions_prior[self.functions] = 0                                                                       # (n_functions,)
+        forbid_functions_prior = np.ones(shape=self.lib.n_choices, dtype=float)  # (lib.n_choices)
+        forbid_functions_prior[self.functions] = 0  # (n_functions,)
 
         # Both template of priors in one array so it is ready to be sliced with mask of True, False depending on prog
-        self.template_prior = np.array([forbid_functions_prior, allow_all_prior])                                        # (2, lib.n_choices)
+        self.template_prior = np.array([forbid_functions_prior, allow_all_prior])  # (2, lib.n_choices)
 
     def __call__(self):
 
         # Getting idx in the lib of ancestors
-        ancestors_idx = self.get_ancestors_idx(step=self.progs.curr_step)                                            # (batch_size, max_n_ancestors)
+        ancestors_idx = self.get_ancestors_idx(step=self.progs.curr_step)  # (batch_size, max_n_ancestors)
 
         # Counts of ancestors in a complete lib (including dummy, invalid etc.) size vector for each prog of batch
-        counts_ancestors = self.progs.count_tokens_idx(ancestors_idx)                                                # (batch_size, lib.n_library)
+        counts_ancestors = self.progs.count_tokens_idx(ancestors_idx)  # (batch_size, lib.n_library)
 
         # Number of ancestors that are part of [functions] for each prog in batch
-        nesting_level = counts_ancestors[:, self.functions].sum(axis=1)                                              # (batch_size,)
+        nesting_level = counts_ancestors[:, self.functions].sum(axis=1)  # (batch_size,)
 
         # mask : is prog allowed to continue with tokens of type [functions]
-        mask_allow = nesting_level < self.max_nesting                                                                # (batch_size,)
+        mask_allow = nesting_level < self.max_nesting  # (batch_size,)
 
         # Slicing array containing two cases (continuing with all tokens allowed or forbidding those in [functions])
-        mask_prob = self.template_prior[mask_allow.astype(int)]                                                      # (batch_size, lib.n_choices)
+        mask_prob = self.template_prior[mask_allow.astype(int)]  # (batch_size, lib.n_choices)
 
         return mask_prob
 
@@ -527,7 +567,8 @@ class NestedTrigonometryPrior(Prior):
     Regulates nesting of trigonometric functions listed in functions.TRIGONOMETRIC_OP. Enforcing that any trigonometric
     function can only have up to [max_nesting] ancestors that also are trigonometric functions.
     """
-    def __init__(self, library, programs, max_nesting = 1):
+
+    def __init__(self, library, programs, max_nesting=1):
         """
         Enforcing that trigonometric functions can not be nested or only up to max_nesting level.
         Parameters
@@ -558,13 +599,14 @@ class NestedTrigonometryPrior(Prior):
             self.active = False
         # Using NestedFunctions prior
         else:
-            self.prior = NestedFunctions (library = self.lib, programs = self.progs,
-                                          functions   = self.trigonometric_functions,
-                                          max_nesting = max_nesting)
+            self.prior = NestedFunctions(library=self.lib,
+                                         programs=self.progs,
+                                         functions=self.trigonometric_functions,
+                                         max_nesting=max_nesting)
 
     def __call__(self):
         if self.active:
-            mask_prob = self.prior()              # (batch_size, lib.n_choices)
+            mask_prob = self.prior()  # (batch_size, lib.n_choices)
         else:
             mask_prob = self.get_default_mask_prob()  # (batch_size, lib.n_choices)
         return mask_prob
@@ -579,11 +621,11 @@ class NestedTrigonometryPrior(Prior):
         return repr
 
 
-
-class OccurrencesPrior (Prior):
+class OccurrencesPrior(Prior):
     """
     Enforces that [targets] can not appear more than [max] times in programs.
     """
+
     def __init__(self, library, programs, targets, max):
         """
         Parameters
@@ -609,39 +651,45 @@ class OccurrencesPrior (Prior):
         assert len(max.shape) == 1 and max.dtype == int, err_msg
         assert (max >= 0).all() == True, err_msg
         assert len(max) == len(targets), err_msg
-        max = max.astype(int)                                                                                   # (n_constraints,)
+        max = max.astype(int)  # (n_constraints,)
 
         # -------- ARGUMENTS HANDLING --------
 
         Prior.__init__(self, library, programs)
 
-        self.targets_str   = targets                                                                             # (n_constraints,)
-        self.n_constraints = len(self.targets_str)   # n_constraints <= n_choices
-        self.targets       = np.array([self.lib.lib_name_to_idx[tok_name] for tok_name in self.targets_str])     # (n_constraints,)
+        self.targets_str = targets  # (n_constraints,)
+        self.n_constraints = len(self.targets_str)  # n_constraints <= n_choices
+        self.targets = np.array([self.lib.lib_name_to_idx[tok_name] for tok_name in self.targets_str
+                                ])  # (n_constraints,)
 
         # Max number of occurrences allowed for each target
-        self.max = max                                                                                           # (n_constraints,)
+        self.max = max  # (n_constraints,)
 
     def __call__(self):
         # Recounting at each step allows for the use of this prior even if it was not used before
         # For each prog in batch, number of occurrences of each target
-        counts = np.equal.outer(self.progs.tokens.idx, self.targets,).sum(axis=1)                               # (batch_size, n_constraints,)
+        counts = np.equal.outer(
+            self.progs.tokens.idx,
+            self.targets,
+        ).sum(axis=1)  # (batch_size, n_constraints,)
         # For each prog in batch, for each target : is target allowed at next step ?
-        is_target_allowed = np.less(counts, self.max)                                                           # (batch_size, n_constraints,)
+        is_target_allowed = np.less(counts, self.max)  # (batch_size, n_constraints,)
         # mask : for each prog in batch, for each token in choosable tokens, is token allowed
         self.reset_mask_prob()
-        self.mask_prob[:, self.targets] = is_target_allowed.astype(float)                                       # (batch_size, n_choices,)
+        self.mask_prob[:, self.targets] = is_target_allowed.astype(float)  # (batch_size, n_choices,)
         return self.mask_prob
 
     def __repr__(self):
-        return "OccurrencesPrior (tokens %s can be used %s times max)"%(self.targets_str, self.max)
+        return "OccurrencesPrior (tokens %s can be used %s times max)" % (self.targets_str, self.max)
+
 
 class PhysicalUnitsPrior(Prior):
     """
     Enforces that next token should be physically consistent units-wise with current program based on current units
     constraints computed live (during program generation). If there is no way get a constraint all tokens are allowed.
     """
-    def __init__(self, library, programs, prob_eps = 0.):
+
+    def __init__(self, library, programs, prob_eps=0.):
         """
         Parameters
         ----------
@@ -653,21 +701,23 @@ class PhysicalUnitsPrior(Prior):
         # ------- INITIALIZING -------
         Prior.__init__(self, library, programs)
         # Tolerance when comparing two units vectors (eg. 0.333333334 == 0.333333333)
-        self.tol = 1e2*np.finfo(np.float32).eps
+        self.tol = 1e2 * np.finfo(np.float32).eps
         # Value to return for the prior inplace of zeros.
         self.prob_eps = prob_eps
 
         # ------- LIB_IS_CONSTRAINING -------
         # mask : are tokens in the library constraining units-wise
-        self.lib_is_constraining = self.lib.is_constraining_phy_units[:self.lib.n_choices]                              # (n_choices,)
+        self.lib_is_constraining = self.lib.is_constraining_phy_units[:self.lib.n_choices]  # (n_choices,)
         # mask : are tokens in the library constraining units-wise (expanding in a new batch_size axis)
-        self.lib_is_constraining_padded = np.tile(self.lib_is_constraining, reps=(self.progs.batch_size, 1))            # (batch_size, n_choices,)
+        self.lib_is_constraining_padded = np.tile(self.lib_is_constraining,
+                                                  reps=(self.progs.batch_size, 1))  # (batch_size, n_choices,)
 
         # ------- LIB_UNITS -------
         # Units of choosable tokens in the library
-        self.lib_units = self.lib.phy_units[:self.lib.n_choices]                                                        # (n_choices, UNITS_VECTOR_SIZE,)
+        self.lib_units = self.lib.phy_units[:self.lib.n_choices]  # (n_choices, UNITS_VECTOR_SIZE,)
         # Padded units of choosable tokens in the library (expanding in a new batch_size axis)
-        self.lib_units_padded = np.tile(self.lib_units, reps=(self.progs.batch_size, 1, 1))                             # (batch_size, n_choices, UNITS_VECTOR_SIZE,)
+        self.lib_units_padded = np.tile(self.lib_units, reps=(self.progs.batch_size, 1,
+                                                              1))  # (batch_size, n_choices, UNITS_VECTOR_SIZE,)
 
     def __call__(self):
 
@@ -680,21 +730,27 @@ class PhysicalUnitsPrior(Prior):
 
         # ------- IS_PHYSICAL -------
         # mask : is dummy at current step part of a physical program units-wise
-        is_physical = self.progs.is_physical                                                                            # (batch_size,)
+        is_physical = self.progs.is_physical  # (batch_size,)
         # mask : is dummy at current step part of a physical program units-wise (expanding in a new n_choices axis)
-        is_physical_padded = np.moveaxis( np.tile(is_physical, reps=(self.lib.n_choices, 1))                            # (batch_size, n_choices,)
-                                              , source=0, destination=1)
+        is_physical_padded = np.moveaxis(
+            np.tile(is_physical, reps=(self.lib.n_choices, 1))  # (batch_size, n_choices,)
+            ,
+            source=0,
+            destination=1)
 
         # ------- IS_CONSTRAINING -------
         # mask : does dummy at current step contain constraints units-wise
-        is_constraining = self.progs.tokens.is_constraining_phy_units[:, curr_step]                                     # (batch_size,)
+        is_constraining = self.progs.tokens.is_constraining_phy_units[:, curr_step]  # (batch_size,)
         # mask : does dummy at current step contain constraints units-wise (expanding in a new n_choices axis)
-        is_constraining_padded = np.moveaxis( np.tile(is_constraining, reps=(self.lib.n_choices, 1))                    # (batch_size, n_choices,)
-                                              , source=0, destination=1)
+        is_constraining_padded = np.moveaxis(
+            np.tile(is_constraining, reps=(self.lib.n_choices, 1))  # (batch_size, n_choices,)
+            ,
+            source=0,
+            destination=1)
         # Number of programs in batch that constraining at this step
-        n_constraining  = is_constraining.sum()
+        n_constraining = is_constraining.sum()
         # mask : for each token in batch, for each token in library are both tokens constraining
-        mask_prob_is_constraining_info = self.lib_is_constraining_padded & is_constraining_padded                       # (batch_size, n_choices,)
+        mask_prob_is_constraining_info = self.lib_is_constraining_padded & is_constraining_padded  # (batch_size, n_choices,)
 
         # Useful as to forbid a choice, the choosable token must be constraining and the current dummy must also be
         # constraining, otherwise the choice should be legal regardless of the units of any of these tokens
@@ -702,23 +758,27 @@ class PhysicalUnitsPrior(Prior):
 
         # ------- UNITS -------
         # Units requirements at current step dummies
-        units_requirement       = self.progs.tokens.phy_units[:, curr_step, :]                                          # (batch_size, UNITS_VECTOR_SIZE)
+        units_requirement = self.progs.tokens.phy_units[:, curr_step, :]  # (batch_size, UNITS_VECTOR_SIZE)
         # Padded units requirements of dummies at current step (expanding in a new n_choices axis)
-        units_requirement_padded = np.moveaxis(np.tile(units_requirement, reps=(self.lib.n_choices, 1, 1))              # (batch_size, n_choices, UNITS_VECTOR_SIZE)
-                                               , source=0, destination=1)
+        units_requirement_padded = np.moveaxis(
+            np.tile(units_requirement, reps=(self.lib.n_choices, 1, 1))  # (batch_size, n_choices, UNITS_VECTOR_SIZE)
+            ,
+            source=0,
+            destination=1)
         # mask : for each token in batch, is choosing token in library legal units-wise
-        mask_prob_units_legality = (np.abs(units_requirement_padded - self.lib_units_padded) < self.tol).prod(axis=-1)  # (batch_size, n_choices)
+        mask_prob_units_legality = (np.abs(units_requirement_padded - self.lib_units_padded)
+                                    < self.tol).prod(axis=-1)  # (batch_size, n_choices)
 
         # ------- RESULT -------
         # Token in library should be allowed if there are no units constraints on any side (library, current dummies)
         # OR if the units are consistent OR if the program is unphysical.
         # Ie. all tokens in the library are allowed if there are no constraints on any sides or if the program is
         # unphysical anyway.
-        mask_prob = np.logical_or.reduce((                                                                              # (batch_size, n_choices)
-            (~ mask_prob_is_constraining_info),
-            (~ is_physical_padded),
+        mask_prob = np.logical_or.reduce((  # (batch_size, n_choices)
+            (~mask_prob_is_constraining_info),
+            (~is_physical_padded),
             mask_prob_units_legality,
-                                          )).astype(float)
+        )).astype(float)
         mask_prob[mask_prob == 0] = self.prob_eps
         return mask_prob
 
@@ -726,25 +786,26 @@ class PhysicalUnitsPrior(Prior):
         repr = "PhysicalUnitsPrior"
         return repr
 
+
 # ----------------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------- INDIVIDUAL PRIORS DICT -----------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------
 
 # Priors that don't take additional arguments
 PRIORS_WO_ARGS = {
-    "UniformArityPrior"     : UniformArityPrior,
-    "NoUselessInversePrior" : NoUselessInversePrior,
+    "UniformArityPrior": UniformArityPrior,
+    "NoUselessInversePrior": NoUselessInversePrior,
 }
 
 # Priors that take additional arguments
 PRIORS_W_ARGS = {
-    "HardLengthPrior"             : HardLengthPrior,
-    "SoftLengthPrior"             : SoftLengthPrior,
-    "RelationshipConstraintPrior" : RelationshipConstraintPrior,
-    "NestedFunctions"             : NestedFunctions,
-    "NestedTrigonometryPrior"     : NestedTrigonometryPrior,
-    "OccurrencesPrior"            : OccurrencesPrior,
-    "PhysicalUnitsPrior"          : PhysicalUnitsPrior,
+    "HardLengthPrior": HardLengthPrior,
+    "SoftLengthPrior": SoftLengthPrior,
+    "RelationshipConstraintPrior": RelationshipConstraintPrior,
+    "NestedFunctions": NestedFunctions,
+    "NestedTrigonometryPrior": NestedTrigonometryPrior,
+    "OccurrencesPrior": OccurrencesPrior,
+    "PhysicalUnitsPrior": PhysicalUnitsPrior,
 }
 
 # All priors
@@ -756,7 +817,12 @@ PRIORS_DICT.update(PRIORS_W_ARGS)
 # -------------------------------------------------- PRIOR COLLECTION --------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------
 
-def make_PriorCollection (library, programs, priors_config,):
+
+def make_PriorCollection(
+    library,
+    programs,
+    priors_config,
+):
     """
     Makes PriorCollection object from arguments.
     Parameters
@@ -779,7 +845,7 @@ def make_PriorCollection (library, programs, priors_config,):
     # Assertion
     assert isinstance(priors_config, list), type_err_msg
     # PriorCollection
-    prior_collection = PriorCollection(library = library, programs = programs)
+    prior_collection = PriorCollection(library=library, programs=programs)
     # Individual priors
     priors = []
     # Iterating through individual priors
@@ -791,7 +857,8 @@ def make_PriorCollection (library, programs, priors_config,):
         # --- GETTING ITEMS ---
         name, args = config[0], config[1]
         # --- ASSERTIONS ---
-        assert name in PRIORS_DICT, "Prior %s is not in the list of available priors :\n %s"%(name, PRIORS_DICT.keys())
+        assert name in PRIORS_DICT, "Prior %s is not in the list of available priors :\n %s" % (name,
+                                                                                                PRIORS_DICT.keys())
         if name in PRIORS_W_ARGS:
             assert args is not None, "Arguments for making prior %s were not given." % (name)
         # --- MAKING PRIOR ---
@@ -801,8 +868,8 @@ def make_PriorCollection (library, programs, priors_config,):
         else:
             prior_args = {}
         # Appending individual prior
-        prior = PRIORS_DICT[name](library = library, programs = programs, **prior_args)
-        priors.append (prior)
+        prior = PRIORS_DICT[name](library=library, programs=programs, **prior_args)
+        priors.append(prior)
     # Setting priors in PriorCollection
     prior_collection.set_priors(priors)
     return prior_collection
@@ -812,7 +879,12 @@ class PriorCollection:
     """
     Collection of prior.Prior, returns value of element-wise multiplication of constituent priors.
     """
-    def __init__(self, library, programs,):
+
+    def __init__(
+        self,
+        library,
+        programs,
+    ):
         """
         Parameters
         ----------
@@ -821,12 +893,12 @@ class PriorCollection:
         programs : program.VectPrograms
             Programs in the batch.
         """
-        self.priors    = []
-        self.lib       = library
-        self.progs     = programs
-        self.init_prob = np.ones( (self.progs.batch_size, self.lib.n_choices), dtype = float)
+        self.priors = []
+        self.lib = library
+        self.progs = programs
+        self.init_prob = np.ones((self.progs.batch_size, self.lib.n_choices), dtype=float)
 
-    def set_priors (self, priors):
+    def set_priors(self, priors):
         """
         Sets constituent priors.
         Parameters
@@ -852,5 +924,5 @@ class PriorCollection:
         #repr = np.array([str(prior) for prior in self.priors])
         repr = "PriorCollection:"
         for prior in self.priors:
-            repr += "\n- %s"%(prior)
+            repr += "\n- %s" % (prior)
         return str(repr)

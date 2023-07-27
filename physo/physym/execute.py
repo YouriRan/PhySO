@@ -5,13 +5,15 @@ import torch as torch
 import torch.multiprocessing as mp
 
 from tqdm import tqdm
+
 SHOW_PROGRESS_BAR = False
 
 # ------------------------------------------------------------------------------------------------------------------
 # ------------------------------------------------ SINGLE EXECUTION ------------------------------------------------
 # ------------------------------------------------------------------------------------------------------------------
 
-def ExecuteProgram (input_var_data, program_tokens, free_const_values=None):
+
+def ExecuteProgram(input_var_data, program_tokens, free_const_values=None):
     """
     Executes a symbolic function program.
     Parameters
@@ -31,7 +33,10 @@ def ExecuteProgram (input_var_data, program_tokens, free_const_values=None):
     """
 
     # Size
-    (n_dim, data_size,) = input_var_data.shape
+    (
+        n_dim,
+        data_size,
+    ) = input_var_data.shape
 
     # Number of tokens in the program
     n_tokens = len(program_tokens)
@@ -41,7 +46,7 @@ def ExecuteProgram (input_var_data, program_tokens, free_const_values=None):
 
     # De-stacking program (iterating from last token to first)
     start = n_tokens - 1
-    for i in range (start, -1, -1):
+    for i in range(start, -1, -1):
         token = program_tokens[i]
         # Terminal token
         if token.arity == 0:
@@ -77,7 +82,8 @@ def ExecuteProgram (input_var_data, program_tokens, free_const_values=None):
     y = curr_stack[0]
     return y
 
-def ComputeInfixNotation (program_tokens):
+
+def ComputeInfixNotation(program_tokens):
     """
     Computes infix str representation of a program.
     (which is the usual way to note symbolic function: +34 (in polish notation) = 3+4 (in infix notation))
@@ -97,7 +103,7 @@ def ComputeInfixNotation (program_tokens):
 
     # De-stacking program (iterating from last token to first)
     start = n_tokens - 1
-    for i in range (start, -1, -1):
+    for i in range(start, -1, -1):
         token = program_tokens[i]
         # Last pending elements are those needed for next computation (in reverse order)
         args = curr_stack[-token.arity:][::-1]
@@ -111,10 +117,11 @@ def ComputeInfixNotation (program_tokens):
                 res = "%s(%s)" % (token.sympy_repr, args[0])
         elif token.arity == 2:
             res = "(%s%s%s)" % (args[0], token.sympy_repr, args[1])
-        elif token.arity > 2 :
+        elif token.arity > 2:
             args_str = ""
-            for arg in args: args_str+="%s,"%arg
-            args_str = args_str[:-1] # deleting last ","
+            for arg in args:
+                args_str += "%s," % arg
+            args_str = args_str[:-1]  # deleting last ","
             res = "%s(%s)" % (token.sympy_repr, args_str)
         if token.arity > 0:
             # Removing those pending elements as they were used
@@ -123,21 +130,24 @@ def ComputeInfixNotation (program_tokens):
         curr_stack.append(res)
     return curr_stack[0]
 
+
 # ------------------------------------------------------------------------------------------------------------------
 # ------------------------------------------ PARALLEL EXECUTION DIAGNOSIS ------------------------------------------
 # ------------------------------------------------------------------------------------------------------------------
+
 
 def IsNotebook():
     try:
         shell = get_ipython().__class__.__name__
         if shell == 'ZMQInteractiveShell':
-            return True   # Jupyter notebook or qtconsole
+            return True  # Jupyter notebook or qtconsole
         elif shell == 'TerminalInteractiveShell':
             return False  # Terminal running IPython
         else:
             return False  # Other type (?)
     except NameError:
-        return False      # Probably standard Python interpreter
+        return False  # Probably standard Python interpreter
+
 
 def ParallelExeAvailability(verbose=False):
     """
@@ -158,7 +168,7 @@ def ParallelExeAvailability(verbose=False):
     is_notebook = IsNotebook()
     is_cuda_available = torch.cuda.is_available()
     mp_start_method = mp.get_start_method()  # Fork or Spawn ? # mp.get_context("fork").Pool(processes=n_cpus)
-    max_ncpus = mp.cpu_count() # Nb. of CPUs available
+    max_ncpus = mp.cpu_count()  # Nb. of CPUs available
 
     # Typically MACs / Windows systems return spawn and LINUX systems return fork. Empirical results:
     # Linux / Intel -> fork
@@ -191,8 +201,8 @@ def ParallelExeAvailability(verbose=False):
 
     # recommended config
     recommended_config = {
-        "parallel_mode" : parallel_mode,
-        "n_cpus" : max_ncpus,
+        "parallel_mode": parallel_mode,
+        "n_cpus": max_ncpus,
     }
 
     # Report
@@ -212,9 +222,11 @@ def ParallelExeAvailability(verbose=False):
 
     return recommended_config
 
+
 # ------------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------- PARALLEL EXECUTION -----------------------------------------------
 # ------------------------------------------------------------------------------------------------------------------
+
 
 # Utils pickable function (non nested definition) executing a program (for parallelization purposes)
 def task_exe(prog, X):
@@ -224,7 +236,8 @@ def task_exe(prog, X):
         res = 0.
     return res
 
-def BatchExecution (progs, X, mask = None, n_cpus = 1, parallel_mode = False):
+
+def BatchExecution(progs, X, mask=None, n_cpus=1, parallel_mode=False):
     """
     Executes prog(X) for each prog in progs and returns the results.
     NB: Parallel execution is typically slower because of communication time (parallel_mode = False is recommended).
@@ -252,7 +265,7 @@ def BatchExecution (progs, X, mask = None, n_cpus = 1, parallel_mode = False):
     # By default, all programs of batch are executed
     # ? = mask.sum() # Number of programs to execute
     if mask is None:
-        mask = np.full(shape=(progs.batch_size), fill_value=True)                           # (batch_size)
+        mask = np.full(shape=(progs.batch_size), fill_value=True)  # (batch_size)
 
     # Number of data point per dimension
     n_samples = X.shape[1]
@@ -268,7 +281,10 @@ def BatchExecution (progs, X, mask = None, n_cpus = 1, parallel_mode = False):
             if mask[i]:
                 # Getting minimum executable skeleton pickable program
                 prog = progs.get_prog(i, skeleton=True)
-                result = pool.apply_async(task_exe, args=(prog, X,))
+                result = pool.apply_async(task_exe, args=(
+                    prog,
+                    X,
+                ))
                 results.append(result)
 
         # Waiting for all tasks to complete and collecting the results
@@ -281,22 +297,23 @@ def BatchExecution (progs, X, mask = None, n_cpus = 1, parallel_mode = False):
     # ----- Non parallel mode -----
     else:
         results = []
-        for i in range (progs.batch_size):
+        for i in range(progs.batch_size):
             # Computing y = prog(X) where mask is True
             if mask[i]:
                 prog = progs.get_prog(i, skeleton=True)
-                result = task_exe(prog, X)                                                 # (n_samples,)
+                result = task_exe(prog, X)  # (n_samples,)
                 results.append(result)
 
     # ----- Results -----
     # Stacking results
-    results = torch.stack(results)                                                         # (?, n_samples)
+    results = torch.stack(results)  # (?, n_samples)
     # Batch of evaluation results
-    y_batch = torch.full((progs.batch_size, n_samples), torch.nan, dtype=results.dtype)    # (batch_size, n_samples)
+    y_batch = torch.full((progs.batch_size, n_samples), torch.nan, dtype=results.dtype)  # (batch_size, n_samples)
     # Updating y_batch with results
-    y_batch[mask] = results                                                                # (?, n_samples)
+    y_batch[mask] = results  # (?, n_samples)
 
     return y_batch
+
 
 # Utils pickable function (non nested definition) executing a program (for parallelization purposes)
 def task_exe_wrapper_reduce(prog, X, reduce_wrapper):
@@ -310,7 +327,8 @@ def task_exe_wrapper_reduce(prog, X, reduce_wrapper):
         res = 0.
     return res
 
-def BatchExecutionReduceGather (progs, X, reduce_wrapper, mask = None, pad_with = np.NaN, n_cpus = 1, parallel_mode = False):
+
+def BatchExecutionReduceGather(progs, X, reduce_wrapper, mask=None, pad_with=np.NaN, n_cpus=1, parallel_mode=False):
     """
     Executes prog(X) for each prog in progs and gathers reduce_wrapper(prog(X)) as a result.
     NB: Parallel execution is typically slower because of communication time (even just gathering a float).
@@ -345,7 +363,7 @@ def BatchExecutionReduceGather (progs, X, reduce_wrapper, mask = None, pad_with 
     # By default, all programs of batch are executed
     # ? = mask.sum() # Number of programs to execute
     if mask is None:
-        mask = np.full(shape=(progs.batch_size), fill_value=True)                           # (batch_size)
+        mask = np.full(shape=(progs.batch_size), fill_value=True)  # (batch_size)
 
     # ----- Parallel mode -----
     if parallel_mode:
@@ -375,19 +393,18 @@ def BatchExecutionReduceGather (progs, X, reduce_wrapper, mask = None, pad_with 
             # Computing y = prog(X) where mask is True
             if mask[i]:
                 prog = progs.get_prog(i, skeleton=True)
-                result = task_exe_wrapper_reduce(prog, X, reduce_wrapper)                 # float
+                result = task_exe_wrapper_reduce(prog, X, reduce_wrapper)  # float
                 results.append(result)
 
     # ----- Results -----
     # Stacking results
-    results = np.array(results)                                                            # (?,)
+    results = np.array(results)  # (?,)
     # Batch of evaluation results
-    res = np.full((progs.batch_size,), pad_with, dtype=results.dtype)                      # (batch_size,)
+    res = np.full((progs.batch_size,), pad_with, dtype=results.dtype)  # (batch_size,)
     # Updating res with results
-    res[mask] = results                                                                    # (?,)
+    res[mask] = results  # (?,)
 
     return res
-
 
 
 # Utils pickable function (non nested definition) executing a program (for parallelization purposes)
@@ -399,7 +416,15 @@ def task_exe_reward(prog, X, y_target, reward_function):
     res = float(res)
     return res
 
-def BatchExecutionReward (progs, X, y_target, reward_function, mask = None, pad_with = np.NaN, n_cpus = 1, parallel_mode = False):
+
+def BatchExecutionReward(progs,
+                         X,
+                         y_target,
+                         reward_function,
+                         mask=None,
+                         pad_with=np.NaN,
+                         n_cpus=1,
+                         parallel_mode=False):
     """
     Executes prog(X) for each prog in progs and gathers reward_function(y_target, prog(X)) as a result.
     NB: Parallel execution is typically slower because of communication time (even just gathering a float).
@@ -437,7 +462,7 @@ def BatchExecutionReward (progs, X, y_target, reward_function, mask = None, pad_
     # By default, all programs of batch are executed
     # ? = mask.sum() # Number of programs to execute
     if mask is None:
-        mask = np.full(shape=(progs.batch_size), fill_value=True)                           # (batch_size)
+        mask = np.full(shape=(progs.batch_size), fill_value=True)  # (batch_size)
 
     # ----- Parallel mode -----
     if parallel_mode:
@@ -467,19 +492,18 @@ def BatchExecutionReward (progs, X, y_target, reward_function, mask = None, pad_
             # Computing y = prog(X) where mask is True
             if mask[i]:
                 prog = progs.get_prog(i, skeleton=True)
-                result = task_exe_reward(prog, X, y_target, reward_function)              # float
+                result = task_exe_reward(prog, X, y_target, reward_function)  # float
                 results.append(result)
 
     # ----- Results -----
     # Stacking results
-    results = np.array(results)                                                            # (?,)
+    results = np.array(results)  # (?,)
     # Batch of evaluation results
-    res = np.full((progs.batch_size,), pad_with, dtype=results.dtype)                      # (batch_size,)
+    res = np.full((progs.batch_size,), pad_with, dtype=results.dtype)  # (batch_size,)
     # Updating res with results
-    res[mask] = results                                                                    # (?,)
+    res[mask] = results  # (?,)
 
     return res
-
 
 
 # Utils pickable function (non nested definition) optimizing the free consts of a program (for parallelization purposes)
@@ -491,7 +515,8 @@ def task_free_const_opti(prog, X, y_target, free_const_opti_args):
         warnings.warn("Unable to optimize free constants of prog %s -> r = 0" % (str(prog)))
     return None
 
-def BatchFreeConstOpti (progs, X, y_target, free_const_opti_args, mask = None, n_cpus = 1, parallel_mode = False):
+
+def BatchFreeConstOpti(progs, X, y_target, free_const_opti_args, mask=None, n_cpus=1, parallel_mode=False):
     """
     Optimizes the free constants of each program in progs.
     NB: Parallel execution is typically faster.
@@ -521,7 +546,7 @@ def BatchFreeConstOpti (progs, X, y_target, free_const_opti_args, mask = None, n
     # By default, all programs of batch are executed
     # ? = mask.sum() # Number of programs to execute
     if mask is None:
-        mask = np.full(shape=(progs.batch_size), fill_value=True)                           # (batch_size)
+        mask = np.full(shape=(progs.batch_size), fill_value=True)  # (batch_size)
 
     # Parallel mode
     if parallel_mode:
@@ -547,6 +572,6 @@ def BatchFreeConstOpti (progs, X, y_target, free_const_opti_args, mask = None, n
             if mask[i] and progs.n_free_const_occurrences[i]:
                 # Getting minimum executable skeleton pickable program
                 prog = progs.get_prog(i, skeleton=True)
-                task_free_const_opti(prog, X = X, y_target = y_target, free_const_opti_args = free_const_opti_args)
+                task_free_const_opti(prog, X=X, y_target=y_target, free_const_opti_args=free_const_opti_args)
 
     return None

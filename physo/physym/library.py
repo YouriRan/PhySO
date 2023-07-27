@@ -5,6 +5,7 @@ import numpy as np
 from physo.physym import functions as Func
 from physo.physym import token as Tok
 
+
 class Library:
     """
         Object containing choosable tokens and their properties for a task of symbolic computation
@@ -80,7 +81,7 @@ class Library:
 
     """
 
-    def __init__(self, custom_tokens = None, args_make_tokens = None, superparent_units = None, superparent_name = "y"):
+    def __init__(self, custom_tokens=None, args_make_tokens=None, superparent_units=None, superparent_name="y"):
         """
         Defines choosable tokens in the library.
         Parameters
@@ -103,47 +104,51 @@ class Library:
         else:
             superparent_units_dict = {superparent_name: superparent_units}
         y_is_constraining_phy_units, y_units = Func.retrieve_units(superparent_units_dict, superparent_name)
+
         # Function
         def superparent_func():
             raise ValueError("Superparent is a placeholder, it should never be called")
+
         # Token
         self.superparent = Tok.Token(
-            name                      = superparent_name,
-            sympy_repr                = superparent_name,
-            arity                     = 0,
-            complexity                = 0.,
-            var_type                  = 0,
-            function                  = superparent_func,
-            is_constraining_phy_units = y_is_constraining_phy_units,
-            phy_units                 = y_units,
+            name=superparent_name,
+            sympy_repr=superparent_name,
+            arity=0,
+            complexity=0.,
+            var_type=0,
+            function=superparent_func,
+            is_constraining_phy_units=y_is_constraining_phy_units,
+            phy_units=y_units,
         )
 
         # ------------------------------ DUMMY ------------------------------
         # Function
         def dummy_func():
             raise ValueError("Dummy is a placeholder, it should never be called")
+
         # Token
         self.dummy = Tok.Token(
-            name                      = Tok.DUMMY_TOKEN_NAME,
-            sympy_repr                = Tok.DUMMY_TOKEN_NAME,
-            arity                     = 0,
-            complexity                = 0.,
-            var_type                  = 0,
-            function                  = dummy_func,
+            name=Tok.DUMMY_TOKEN_NAME,
+            sympy_repr=Tok.DUMMY_TOKEN_NAME,
+            arity=0,
+            complexity=0.,
+            var_type=0,
+            function=dummy_func,
         )
 
         # ------------------------------ INVALID ------------------------------
         # Function
         def invalid_func():
             raise ValueError("Invalid is a placeholder, it should never be called")
+
         # Token
         self.invalid = Tok.Token(
-            name                      = Tok.INVALID_TOKEN_NAME,
-            sympy_repr                = Tok.INVALID_TOKEN_NAME,
-            arity                     = 0,
-            complexity                = 0.,
-            var_type                  = 0,
-            function                  = invalid_func,
+            name=Tok.INVALID_TOKEN_NAME,
+            sympy_repr=Tok.INVALID_TOKEN_NAME,
+            arity=0,
+            complexity=0.,
+            var_type=0,
+            function=invalid_func,
         )
 
         # ------------------------------ PLACEHOLDERS ------------------------------
@@ -151,25 +156,25 @@ class Library:
 
         # ------------------------------ LIB OF TOKENS ------------------------------
         self.choosable_tokens = []
-        self.append_tokens_from_names(args_make_tokens = args_make_tokens)
-        self.append_custom_tokens(custom_tokens = custom_tokens)
+        self.append_tokens_from_names(args_make_tokens=args_make_tokens)
+        self.append_custom_tokens(custom_tokens=custom_tokens)
 
         # ------------------------------ INPUT VAR ------------------------------
         # Number of input variables
-        self.n_input_var        = (self.var_type == 1).sum()
+        self.n_input_var = (self.var_type == 1).sum()
         # Ids of input variables available
-        self.input_var_ids      = self.var_id[self.var_type == 1]   # (n_input_var,) of int
+        self.input_var_ids = self.var_id[self.var_type == 1]  # (n_input_var,) of int
 
         # ------------------------------ FREE CONSTANTS ------------------------------
         # Number of free constants
         self.n_free_const = (self.var_type == 2).sum()
         # Free constants tokens
-        self.free_constants_tokens = self.lib_tokens[self.var_type == 2]                                           # (n_free_const,) of token.Token
+        self.free_constants_tokens = self.lib_tokens[self.var_type == 2]  # (n_free_const,) of token.Token
         # Ids of free constants available
-        self.free_constants_ids = self.var_id[self.var_type == 2]                                                  # (n_free_const,) of int
+        self.free_constants_ids = self.var_id[self.var_type == 2]  # (n_free_const,) of int
         # Initial values of free constants
-        self.free_constants_init_val = np.array([token.init_val for token in self.lib_tokens])[self.var_type == 2] # (n_free_const,) of float
-
+        self.free_constants_init_val = np.array([token.init_val for token in self.lib_tokens
+                                                ])[self.var_type == 2]  # (n_free_const,) of float
 
     def reset_library(self):
         self.lib_tokens = np.array(self.choosable_tokens + self.placeholders)
@@ -179,48 +184,57 @@ class Library:
         self.n_choices = len(self.choosable_tokens)
         # Idx of placeholders
         self.superparent_idx = self.n_choices + 0
-        self.dummy_idx       = self.n_choices + 1
-        self.invalid_idx     = self.n_choices + 2
+        self.dummy_idx = self.n_choices + 1
+        self.invalid_idx = self.n_choices + 2
         # Token representation
-        self.lib_name           = np.array([token.name for token in self.lib_tokens       ]).astype(str)  # str (<MAX_NAME_SIZE) )
-        self.lib_choosable_name = np.array([token.name for token in self.choosable_tokens ]).astype(str)  # str (<MAX_NAME_SIZE) )
-        self.lib_sympy_repr     = np.array([token.sympy_repr for token in self.lib_tokens ]).astype(str)  # str (<MAX_NAME_SIZE) )
+        self.lib_name = np.array([token.name for token in self.lib_tokens]).astype(str)  # str (<MAX_NAME_SIZE) )
+        self.lib_choosable_name = np.array([token.name for token in self.choosable_tokens
+                                           ]).astype(str)  # str (<MAX_NAME_SIZE) )
+        self.lib_sympy_repr = np.array([token.sympy_repr for token in self.lib_tokens
+                                       ]).astype(str)  # str (<MAX_NAME_SIZE) )
         # Object properties
-        self.lib_function   = np.array([token.function   for token in self.lib_tokens])  # object (callable or None)
+        self.lib_function = np.array([token.function for token in self.lib_tokens])  # object (callable or None)
         # Vectorized properties
-        self.properties = Tok.VectTokens(shape = (1, self.n_library,), invalid_token_idx = self.invalid_idx) # not using positional properties
-        self.properties.arity                     [0, :] = np.array([token.arity                     for token in self.lib_tokens]).astype(int  )  # int
-        self.properties.complexity                [0, :] = np.array([token.complexity                for token in self.lib_tokens]).astype(float)  # float
-        self.properties.var_type                  [0, :] = np.array([token.var_type                  for token in self.lib_tokens]).astype(int  )  # int
-        self.properties.var_id                    [0, :] = np.array([token.var_id                    for token in self.lib_tokens]).astype(int  )  # int
-        self.properties.behavior_id               [0, :] = np.array([token.behavior_id               for token in self.lib_tokens]).astype(int  )  # int
-        self.properties.is_power                  [0, :] = np.array([token.is_power                  for token in self.lib_tokens]).astype(bool )  # bool
-        self.properties.power                     [0, :] = np.array([token.power                     for token in self.lib_tokens]).astype(float)  # float
-        self.properties.is_constraining_phy_units [0, :] = np.array([token.is_constraining_phy_units for token in self.lib_tokens]).astype(bool )  # bool
-        self.properties.phy_units                 [0, :] = np.array([token.phy_units                 for token in self.lib_tokens]).astype(float)  # float
+        self.properties = Tok.VectTokens(shape=(
+            1,
+            self.n_library,
+        ), invalid_token_idx=self.invalid_idx)  # not using positional properties
+        self.properties.arity[0, :] = np.array([token.arity for token in self.lib_tokens]).astype(int)  # int
+        self.properties.complexity[0, :] = np.array([token.complexity for token in self.lib_tokens
+                                                    ]).astype(float)  # float
+        self.properties.var_type[0, :] = np.array([token.var_type for token in self.lib_tokens]).astype(int)  # int
+        self.properties.var_id[0, :] = np.array([token.var_id for token in self.lib_tokens]).astype(int)  # int
+        self.properties.behavior_id[0, :] = np.array([token.behavior_id for token in self.lib_tokens
+                                                     ]).astype(int)  # int
+        self.properties.is_power[0, :] = np.array([token.is_power for token in self.lib_tokens]).astype(bool)  # bool
+        self.properties.power[0, :] = np.array([token.power for token in self.lib_tokens]).astype(float)  # float
+        self.properties.is_constraining_phy_units[0, :] = np.array(
+            [token.is_constraining_phy_units for token in self.lib_tokens]).astype(bool)  # bool
+        self.properties.phy_units[0, :] = np.array([token.phy_units for token in self.lib_tokens
+                                                   ]).astype(float)  # float
         # Giving access to vectorized properties to user without having to use [0, :] at each property access
-        self.arity                     = self.properties.arity                     [0, :]
-        self.complexity                = self.properties.complexity                [0, :]
-        self.var_type                  = self.properties.var_type                  [0, :]
-        self.var_id                    = self.properties.var_id                    [0, :]
-        self.behavior_id               = self.properties.behavior_id               [0, :]
-        self.is_power                  = self.properties.is_power                  [0, :]
-        self.power                     = self.properties.power                     [0, :]
-        self.is_constraining_phy_units = self.properties.is_constraining_phy_units [0, :]
-        self.phy_units                 = self.properties.phy_units                 [0, :]
+        self.arity = self.properties.arity[0, :]
+        self.complexity = self.properties.complexity[0, :]
+        self.var_type = self.properties.var_type[0, :]
+        self.var_id = self.properties.var_id[0, :]
+        self.behavior_id = self.properties.behavior_id[0, :]
+        self.is_power = self.properties.is_power[0, :]
+        self.power = self.properties.power[0, :]
+        self.is_constraining_phy_units = self.properties.is_constraining_phy_units[0, :]
+        self.phy_units = self.properties.phy_units[0, :]
         # Helper dict
-        self.lib_name_to_idx             = {self.lib_name[i] : i                  for i in range (self.n_library)}
-        self.lib_choosable_name_to_idx   = {self.lib_name[i] : i                  for i in range (self.n_choices)}
-        self.lib_name_to_token           = {self.lib_name[i] : self.lib_tokens[i] for i in range (self.n_library)}
+        self.lib_name_to_idx = {self.lib_name[i]: i for i in range(self.n_library)}
+        self.lib_choosable_name_to_idx = {self.lib_name[i]: i for i in range(self.n_choices)}
+        self.lib_name_to_token = {self.lib_name[i]: self.lib_tokens[i] for i in range(self.n_library)}
 
-    def append_custom_tokens(self, custom_tokens = None):
+    def append_custom_tokens(self, custom_tokens=None):
         # ----- Handling custom tokens -----
         if custom_tokens is None:
             custom_tokens = []
         self.choosable_tokens += custom_tokens
         self.reset_library()
 
-    def append_tokens_from_names(self, args_make_tokens = None):
+    def append_tokens_from_names(self, args_make_tokens=None):
         # ----- Handling created tokens -----
         if args_make_tokens is None:
             created_tokens = []
@@ -243,8 +257,8 @@ class Library:
                 # is_constraining_phy_units = False <=> phy_units is Free ie phy_units = vector of NAN
                 # (this is ensured via exceptions in token.Token.__init__)
                 warnings.warn("The units of token %s were not provided (is_constraining_phy_units=%s ; phy_units=%s), "
-                              "unable to compute units constraints."
-                              %(token.name, token.is_constraining_phy_units, token.phy_units))
+                              "unable to compute units constraints." %
+                              (token.name, token.is_constraining_phy_units, token.phy_units))
                 self.terminal_units_provided = False
         return None
 

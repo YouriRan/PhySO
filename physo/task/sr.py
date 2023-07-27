@@ -12,44 +12,46 @@ import physo.physym.execute as exec
 default_config = config0
 
 # DEFAULT MONITORING CONFIG TO USE
-get_default_run_logger = lambda : monitoring.RunLogger(
-                                      save_path = 'SR.log',
-                                      do_save   = True)
-get_default_run_visualiser = lambda : monitoring.RunVisualiser (
-                                           epoch_refresh_rate = 1,
-                                           save_path = 'SR_curves.png',
-                                           do_show   = False,
-                                           do_prints = True,
-                                           do_save   = True, )
+get_default_run_logger = lambda: monitoring.RunLogger(save_path='SR.log', do_save=True)
+get_default_run_visualiser = lambda: monitoring.RunVisualiser(
+    epoch_refresh_rate=1,
+    save_path='SR_curves.png',
+    do_show=False,
+    do_prints=True,
+    do_save=True,
+)
 
 # DEFAULT ALLOWED OPERATIONS
 default_op_names = ["mul", "add", "sub", "div", "inv", "n2", "sqrt", "neg", "exp", "log", "sin", "cos"]
 default_stop_after_n_epochs = 5
 
-def SR(X, y,
-       # X
-       X_units = None,
-       X_names = None,
-       # y
-       y_units = None,
-       y_name  = None,
-       # Fixed constants
-       fixed_consts = None,
-       fixed_consts_units = None,
-       # Free constants
-       free_consts_units  = None,
-       free_consts_names  = None,
-       # Operations to use
-       op_names = None,
-       # Stopping
-       stop_reward = 1.,
-       epochs = None,
-       # Default run config to use
-       run_config = default_config,
-       # Default run monitoring
-       get_run_logger     = get_default_run_logger,
-       get_run_visualiser = get_default_run_visualiser,
-       ):
+
+def SR(
+    X,
+    y,
+    # X
+    X_units=None,
+    X_names=None,
+    # y
+    y_units=None,
+    y_name=None,
+    # Fixed constants
+    fixed_consts=None,
+    fixed_consts_units=None,
+    # Free constants
+    free_consts_units=None,
+    free_consts_names=None,
+    # Operations to use
+    op_names=None,
+    # Stopping
+    stop_reward=1.,
+    epochs=None,
+    # Default run config to use
+    run_config=default_config,
+    # Default run monitoring
+    get_run_logger=get_default_run_logger,
+    get_run_visualiser=get_default_run_visualiser,
+):
     """
     Runs a symbolic regression task with default hyperparameters config.
     (Wrapper around physo.task.fit)
@@ -127,7 +129,7 @@ def SR(X, y,
     # Handling input variables names
     if X_names is None:
         # If None use x00, x01... names
-        X_names = ["x%s"%(str(i).zfill(2)) for i in range(n_dim)]
+        X_names = ["x%s" % (str(i).zfill(2)) for i in range(n_dim)]
     X_names = np.array(X_names)
     assert X_names.dtype.char == "U", "Input variables names should be strings."
     assert X_names.shape == (n_dim,), "There should be one input variable name per dimension in X."
@@ -136,7 +138,7 @@ def SR(X, y,
     # Handling input variables units
     if X_units is None:
         warnings.warn("No units given for input variables, assuming dimensionless units.")
-        X_units = [[0,0,0] for _ in range(n_dim)]
+        X_units = [[0, 0, 0] for _ in range(n_dim)]
     X_units = np.array(X_units).astype(float)
     assert X_units.shape[0] == n_dim, "There should be one input variable units per dimension in X."
 
@@ -148,7 +150,7 @@ def SR(X, y,
     # --- y_units ---
     if y_units is None:
         warnings.warn("No units given for root variable, assuming dimensionless units.")
-        y_units = [0,0,0]
+        y_units = [0, 0, 0]
     y_units = np.array(y_units).astype(float)
     assert len(y_units.shape) == 1, "y_units must be a 1D units vector"
 
@@ -162,14 +164,15 @@ def SR(X, y,
 
     # --- fixed_consts_names ---
     fixed_consts_names = np.array([str(c) for c in fixed_consts])
-    fixed_consts       = np.array(fixed_consts).astype(float)
+    fixed_consts = np.array(fixed_consts).astype(float)
 
     # --- fixed_consts_units ---
     if fixed_consts_units is None:
         warnings.warn("No units given for fixed constants, assuming dimensionless units.")
-        fixed_consts_units = [[0,0,0] for _ in range(n_fixed_consts)]
+        fixed_consts_units = [[0, 0, 0] for _ in range(n_fixed_consts)]
     fixed_consts_units = np.array(fixed_consts_units).astype(float)
-    assert fixed_consts_units.shape[0] == n_fixed_consts, "There should be one fixed constant units vector per fixed constant in fixed_consts_names"
+    assert fixed_consts_units.shape[
+        0] == n_fixed_consts, "There should be one fixed constant units vector per fixed constant in fixed_consts_names"
 
     # --- n_free_consts ---
     if free_consts_names is not None:
@@ -183,17 +186,19 @@ def SR(X, y,
     # --- free_consts_names ---
     if free_consts_names is None:
         # If None use c00, c01... names
-        free_consts_names = ["c%s"%(str(i).zfill(2)) for i in range(n_free_consts)]
+        free_consts_names = ["c%s" % (str(i).zfill(2)) for i in range(n_free_consts)]
     free_consts_names = np.array(free_consts_names)
     assert free_consts_names.dtype.char == "U", "Free constants names should be strings."
-    assert free_consts_names.shape == (n_free_consts,), "There should be one free constant name per units in free_consts_units"
+    assert free_consts_names.shape == (
+        n_free_consts,), "There should be one free constant name per units in free_consts_units"
 
     # --- free_consts_units ---
     if free_consts_units is None:
         warnings.warn("No units given for free constants, assuming dimensionless units.")
-        free_consts_units = [[0,0,0] for _ in range(n_free_consts)]
+        free_consts_units = [[0, 0, 0] for _ in range(n_free_consts)]
     free_consts_units = np.array(free_consts_units).astype(float)
-    assert free_consts_units.shape[0] == n_free_consts, "There should be one free constant units vector per free constant in free_consts_names"
+    assert free_consts_units.shape[
+        0] == n_free_consts, "There should be one free constant units vector per free constant in free_consts_names"
 
     # --- op_names ---
     if op_names is None:
@@ -208,32 +213,43 @@ def SR(X, y,
 
     # Embedding wrapping
     args_make_tokens = {
-                    # operations
-                    "op_names"             : op_names,
-                    "use_protected_ops"    : True,
-                    # input variables
-                    "input_var_ids"        : {X_names[i]: i          for i in range(n_dim)},
-                    "input_var_units"      : {X_names[i]: X_units[i] for i in range(n_dim)},
-                    # constants
-                    "constants"            : {fixed_consts_names[i] : fixed_consts[i]       for i in range(n_fixed_consts)},
-                    "constants_units"      : {fixed_consts_names[i] : fixed_consts_units[i] for i in range(n_fixed_consts)},
-                    # free constants
-                    "free_constants"       : {free_consts_names[i]                          for i in range(n_free_consts)},
-                    "free_constants_units" : {free_consts_names[i] : free_consts_units[i]   for i in range(n_free_consts)},
-                        }
+        # operations
+        "op_names": op_names,
+        "use_protected_ops": True,
+        # input variables
+        "input_var_ids": {
+            X_names[i]: i for i in range(n_dim)
+        },
+        "input_var_units": {
+            X_names[i]: X_units[i] for i in range(n_dim)
+        },
+        # constants
+        "constants": {
+            fixed_consts_names[i]: fixed_consts[i] for i in range(n_fixed_consts)
+        },
+        "constants_units": {
+            fixed_consts_names[i]: fixed_consts_units[i] for i in range(n_fixed_consts)
+        },
+        # free constants
+        "free_constants": {free_consts_names[i] for i in range(n_free_consts)},
+        "free_constants_units": {
+            free_consts_names[i]: free_consts_units[i] for i in range(n_free_consts)
+        },
+    }
 
-    library_config = {"args_make_tokens"  : args_make_tokens,
-                      "superparent_units" : y_units,
-                      "superparent_name"  : y_name,
-                    }
+    library_config = {
+        "args_make_tokens": args_make_tokens,
+        "superparent_units": y_units,
+        "superparent_name": y_name,
+    }
 
     # Monitoring
-    run_logger     = get_run_logger()
+    run_logger = get_run_logger()
     run_visualiser = get_run_visualiser()
     run_config.update({
-        "library_config"       : library_config,
-        "run_logger"           : run_logger,
-        "run_visualiser"       : run_visualiser,
+        "library_config": library_config,
+        "run_logger": run_logger,
+        "run_visualiser": run_visualiser,
     })
 
     # Number of epochs
@@ -246,9 +262,11 @@ def SR(X, y,
     # ------------------------------- RUN -------------------------------
 
     print("SR task started...")
-    rewards, candidates = fit (X, y, run_config,
-                                stop_reward = stop_reward,
-                                stop_after_n_epochs = default_stop_after_n_epochs)
+    rewards, candidates = fit(X,
+                              y,
+                              run_config,
+                              stop_reward=stop_reward,
+                              stop_after_n_epochs=default_stop_after_n_epochs)
 
     # ------------------------------- RESULTS -------------------------------
 

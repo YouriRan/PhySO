@@ -7,7 +7,15 @@ def safe_cross_entropy(p, logq, dim=-1):
     return -torch.sum(p * safe_logq, dim=dim)
 
 
-def loss_func(logits_train, ideal_probs_train, R_train, baseline, lengths, gamma_decay, entropy_weight, ):
+def loss_func(
+    logits_train,
+    ideal_probs_train,
+    R_train,
+    baseline,
+    lengths,
+    gamma_decay,
+    entropy_weight,
+):
     """
     Loss function for reinforcing symbolic programs.
     Parameters
@@ -36,20 +44,26 @@ def loss_func(logits_train, ideal_probs_train, R_train, baseline, lengths, gamma
     """
 
     # Getting shape
-    (max_time_step, n_train, n_choices,) = ideal_probs_train.shape
+    (
+        max_time_step,
+        n_train,
+        n_choices,
+    ) = ideal_probs_train.shape
 
     # ----- Length mask -----
     # Lengths mask (avoids learning out of range of symbolic functions)
 
-    mask_length_np = np.tile(np.arange(0, max_time_step), (n_train, 1)  # (n_train, max_time_step,)
-                             ).astype(int) < np.tile(lengths, (max_time_step, 1)).transpose()
+    mask_length_np = np.tile(
+        np.arange(0, max_time_step),
+        (n_train, 1)  # (n_train, max_time_step,)
+    ).astype(int) < np.tile(lengths, (max_time_step, 1)).transpose()
     mask_length_np = mask_length_np.transpose().astype(float)  # (max_time_step, n_train,)
     mask_length = torch.tensor(mask_length_np, requires_grad=False)  # (max_time_step, n_train,)
 
     # ----- Entropy mask -----
     # Entropy mask (weighting differently along sequence dim)
 
-    entropy_gamma_decay = np.array([gamma_decay ** t for t in range(max_time_step)])  # (max_time_step,)
+    entropy_gamma_decay = np.array([gamma_decay**t for t in range(max_time_step)])  # (max_time_step,)
     entropy_decay_mask_np = np.tile(entropy_gamma_decay,
                                     (n_train, 1)).transpose() * mask_length_np  # (max_time_step, n_train,)
     entropy_decay_mask = torch.tensor(entropy_decay_mask_np, requires_grad=False)  # (max_time_step, n_train,)

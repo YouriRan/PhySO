@@ -1,10 +1,12 @@
 import torch
 import numpy as np
 
+
 class Dataset:
     """
     Contains a dataset and runs assertions.
     """
+
     def __init__(self, library, X, y_target):
         """
         Parameters
@@ -21,15 +23,15 @@ class Dataset:
         # ---------------------- ASSERTIONS ----------------------
 
         # --- ASSERT TORCH TYPE ---
-        assert torch.is_tensor(X),        "X        must be a torch.tensor"
+        assert torch.is_tensor(X), "X        must be a torch.tensor"
         assert torch.is_tensor(y_target), "y_target must be a torch.tensor"
         # --- ASSERT FLOAT TYPE ---
-        assert X       .dtype == torch.float64 or X       .dtype == torch.float32, "X        must contain floats."
+        assert X.dtype == torch.float64 or X.dtype == torch.float32, "X        must contain floats."
         assert y_target.dtype == torch.float64 or y_target.dtype == torch.float32, "y_target must contain floats."
-        assert torch.isnan(X).any()        == False, "X should not contain any Nans"
+        assert torch.isnan(X).any() == False, "X should not contain any Nans"
         assert torch.isnan(y_target).any() == False, "y should not contain any Nans"
         # --- ASSERT SHAPE ---
-        assert len(X.shape)        == 2, "X        must have shape = (n_dim, data_size,)"
+        assert len(X.shape) == 2, "X        must have shape = (n_dim, data_size,)"
         assert len(y_target.shape) == 1, "y_target must have shape = (data_size,)"
         assert X.shape[1] == y_target.shape[0], "X must have shape = (n_dim, data_size,) and y_target must have " \
                                                 "shape = (data_size,) with the same data_size."
@@ -43,10 +45,9 @@ class Dataset:
                                          "\n %s\n as they have out of range var_id >= X.shape[0] = n_dim = %i," \
                                          " var_id :\n %s" % (library.lib_name[mask_wrong_id], n_dim, library.var_id [mask_wrong_id])
 
-
         # ---------------------- ATTRIBUTES ----------------------
-        self.X               = X
-        self.y_target        = y_target
+        self.X = X
+        self.y_target = y_target
         self.detected_device = X.device
 
     def __repr__(self):
