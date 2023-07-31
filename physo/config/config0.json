@@ -1,0 +1,82 @@
+{
+    "reward_config": {
+        "reward_function": "SquashedNRMSE",
+        "zero_out_unphysical": true,
+        "zero_out_duplicates": false,
+        "keep_lowest_complexity_duplicate": false,
+        "parallel_mode": null,
+        "n_cpus": null
+    },
+    "learning_config": {
+        "batch_size": 1000,
+        "max_time_step": 35,
+        "n_epochs": 1000000000,
+        "gamma_decay": 0.7,
+        "entropy_weight": 5e-3,
+        "risk_factor": 5e-2,
+        "optimizer": "Adam",
+        "optimizer_args": {},
+        "observe_units": true
+    },
+    "free_const_opti_args": {
+        "loss": "MSE",
+        "method": "LBFGS",
+        "method_args": {
+            "n_steps": 15,
+            "tol": 1e-8,
+            "lbfgs_func_args": {
+                "max_iter": 4,
+                "line_search_fn": "strong_wolfe"
+            }
+        }
+    },
+    "priors_config": {
+        "UniformArityPrior": null,
+        "HardLengthPrior": {
+            "min_length": 4,
+            "max_length": 35
+        },
+        "SoftLengthPrior": {
+            "length_loc": 8,
+            "scale": 5
+        },
+        "NoUselessInversePrior": null,
+        "PhysicalUnitsPrior": {
+            "prob_eps": "eps"
+        },
+        "NestedFunctions": {
+            "functions": [
+                "exp",
+                "log"
+            ],
+            "max_nesting": 1
+        },
+        "NestedTrigonometryPrior": {
+            "max_nesting": 1
+        },
+        "OccurrencesPrior": null
+    },
+    "cell_config": {
+        "hidden_size": 128,
+        "n_layers": 1,
+        "is_lobotomized": false
+    },
+    "library_config": {
+        "args_make_tokens": {
+            "op_names": [],
+            "use_protected_ops": true,
+            "input_vars": [],
+            "input_vars_units": {},
+            "input_vars_complexity": {},
+            "constants": {},
+            "constants_units": {},
+            "constants_complexity": {},
+            "free_constants": {},
+            "free_constants_init_val": {},
+            "free_constants_units": {},
+            "free_constants_complexity": {}
+        },
+        "superparent_units": {},
+        "superparent_name": {}
+    }
+}

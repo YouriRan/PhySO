@@ -2,6 +2,10 @@ import lightning.pytorch as pl
 import torch
 import torch.nn.functional as F
 
+import json
+from typing import Union
+
+from physo import utils
 from physo.physym.batch import Batch
 from physo.learn import rnn
 from physo.learn import learn
@@ -9,11 +13,16 @@ from physo.learn import learn
 
 class PhySO(pl.LightningModule):
 
-    def __init__(self, X, y, run_config, verbose=False, candidate_wrapper=None):
+    def __init__(self,
+                 X: torch.Tensor,
+                 y: torch.Tensor,
+                 run_config: Union[str, dict],
+                 verbose: bool = False,
+                 candidate_wrapper: bool = None):
         super().__init__()
 
         # main params
-        self.config = run_config
+        self.config = utils.load_config(run_config)
         self.X = X
         self.y = y
         self.verbose = verbose
@@ -32,6 +41,7 @@ class PhySO(pl.LightningModule):
         self.ntrain = self.config["learning_config"]["risk_factor"] * self.batch_size
         self.gamma_decay = self.config["learning_config"]["gamma_decay"]
         self.entropy_weight = self.config["learning_config"]["gamma_decay"]
+        self.lr = self.config["learning_config"]["learning_rate"]
 
         # initialize rnn cell
         self.model = rnn.Cell(input_size=self.batch.obs_size,
@@ -71,7 +81,7 @@ class PhySO(pl.LightningModule):
 
         # get top rankings
         ranking = rewards.argsort()
-        keep, notkept = ranking[-self.ntrain:], ranking[:-self.ntrain]
+        keep = ranking[-self.ntrain:]
 
         # get elite candidates
         actions_train = actions[:, keep]
@@ -103,7 +113,7 @@ class PhySO(pl.LightningModule):
         # entropy loss
         entropy_per_step = -torch.nansum(probs * log_probs, dim=2)
         entropy = torch.sum(entropy_per_step * entropy_gamma_decay, dim=0)
-        loss_entropy = -entropy_weight * torch.mean(entropy)
+        loss_entropy = -self.entropy_weight * torch.mean(entropy)
 
         return loss_gp + loss_entropy
 
@@ -137,4 +147,8 @@ class PhySO(pl.LightningModule):
         return
 
     def configure_optimizers(self):
-        optimizer = self.config["learning_config"]["get_optimizer"](self.model)
+        optimizer_class = getattr(torch.optim, self.config["learning_config"]["get_optimizer"])
+        optimizer = optimizer_class(self.model.parameters(),
+                                    lr=self.lr,
+                                    **self.config["learning_config"]["optimizer_args"])
+        return optimizer

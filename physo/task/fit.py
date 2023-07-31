@@ -39,16 +39,10 @@ def fit(X, y, run_config, candidate_wrapper=None, stop_reward=1., stop_after_n_e
 
     def batch_reseter():
         return Batch.Batch(
-            library_args=run_config["library_config"],
-            priors_config=run_config["priors_config"],
-            batch_size=run_config["learning_config"]["batch_size"],
-            max_time_step=run_config["learning_config"]["max_time_step"],
-            rewards_computer=run_config["learning_config"]["rewards_computer"],
-            free_const_opti_args=run_config["free_const_opti_args"],
+            config=run_config,
             X=X,
             y_target=y,
             candidate_wrapper=candidate_wrapper,
-            observe_units=run_config["learning_config"]["observe_units"],
         )
 
     batch = batch_reseter()

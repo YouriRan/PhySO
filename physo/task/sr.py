@@ -3,6 +3,7 @@ import torch
 import warnings
 
 # Internal imports
+import physo
 from physo.config.config0 import config0
 import physo.learn.monitoring as monitoring
 from physo.task.fit import fit
@@ -246,6 +247,9 @@ def SR(
     # Monitoring
     run_logger = get_run_logger()
     run_visualiser = get_run_visualiser()
+
+    run_config = physo.utils.load_config(run_config)
+
     run_config.update({
         "library_config": library_config,
         "run_logger": run_logger,

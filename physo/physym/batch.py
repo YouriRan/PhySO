@@ -98,7 +98,7 @@ class Batch:
         )
 
         # Reward func
-        self.rewards_computer = config["learning_config"]["rewards_computer"]
+        self.rewards_computer = reward.make_RewardsComputer(**config["reward_config"])
 
         # Sending free const table to same device as dataset
         self.programs.free_consts.values = self.programs.free_consts.values.to(self.dataset.detected_device)

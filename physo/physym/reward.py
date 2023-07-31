@@ -32,13 +32,14 @@ def SquashedNRMSE(
     reward = 1 / (1 + NRMSE)
     return reward
 
+REWARDS = {"SquashedNRMSE": SquashedNRMSE}
 
 def RewardsComputer(
     programs,
     X,
     y_target,
     free_const_opti_args=None,
-    reward_function=SquashedNRMSE,
+    reward_function="SquashedNRMSE",
     zero_out_unphysical=False,
     zero_out_duplicates=False,
     keep_lowest_complexity_duplicate=False,
@@ -89,6 +90,9 @@ def RewardsComputer(
         mask_is_physical = programs.is_physical  # (batch_size,)
         # Update mask to zero out unphysical programs
         mask_valid = (mask_valid & mask_is_physical)  # (batch_size,)
+
+    # ----- REWARDS COMPUTER -----
+    reward_function = REWARDS[reward_function]
 
     # ----- DUPLICATES -----
     if zero_out_duplicates:
@@ -181,7 +185,7 @@ def RewardsComputer(
 
 
 def make_RewardsComputer(
-    reward_function=SquashedNRMSE,
+    reward_function="SquashedNRMSE",
     zero_out_unphysical=False,
     zero_out_duplicates=False,
     keep_lowest_complexity_duplicate=False,
