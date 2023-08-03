@@ -14,6 +14,7 @@
         "gamma_decay": 0.7,
         "entropy_weight": 5e-3,
         "risk_factor": 5e-2,
+        "learning_rate": 2.5e-3,
         "optimizer": "Adam",
         "optimizer_args": {},
         "observe_units": true
@@ -63,20 +64,71 @@
     },
     "library_config": {
         "args_make_tokens": {
-            "op_names": [],
+            "op_names": [
+                "mul",
+                "add",
+                "sub",
+                "div",
+                "inv",
+                "neg"
+            ],
             "use_protected_ops": true,
-            "input_vars": [],
-            "input_vars_units": {},
-            "input_vars_complexity": {},
-            "constants": {},
-            "constants_units": {},
-            "constants_complexity": {},
-            "free_constants": {},
-            "free_constants_init_val": {},
-            "free_constants_units": {},
-            "free_constants_complexity": {}
+            "input_vars": {
+                "p": 0
+            },
+            "input_vars_units": {
+                "p": [
+                    -2,
+                    0,
+                    1
+                ]
+            },
+            "input_vars_complexity": {
+                "p": 1.0
+            },
+            "constants": {
+                "1": 0
+            },
+            "constants_units": {
+                "1": [
+                    0,
+                    0,
+                    0
+                ]
+            },
+            "constants_complexity": {
+                "1": 1.0
+            },
+            "free_constants": {
+                "b": 0,
+                "qsat": 1
+            },
+            "free_constants_units": {
+                "b": [
+                    2,
+                    0,
+                    -1
+                ],
+                "qsat": [
+                    0,
+                    1,
+                    0
+                ]
+            },
+            "free_constants_init_val": {
+                "b": 1.0,
+                "qsat": 1.0
+            },
+            "free_constants_complexity": {
+                "b": 1.0,
+                "qsat": 1.0
+            }
         },
-        "superparent_units": {},
-        "superparent_name": {}
+        "superparent_name": "q",
+        "superparent_units": [
+            0,
+            1,
+            0
+        ]
     }
 }

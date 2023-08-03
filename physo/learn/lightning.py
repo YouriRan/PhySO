@@ -42,6 +42,7 @@ class PhySO(pl.LightningModule):
         self.gamma_decay = self.config["learning_config"]["gamma_decay"]
         self.entropy_weight = self.config["learning_config"]["gamma_decay"]
         self.lr = self.config["learning_config"]["learning_rate"]
+        self.n_choices = self.batch.n_choices
 
         # initialize rnn cell
         self.model = rnn.Cell(input_size=self.batch.obs_size,
@@ -106,7 +107,8 @@ class PhySO(pl.LightningModule):
         log_probs = F.log_softmax(logits_train, dim=2)
 
         # sum over action dim (nansum == safe_cross_entropy)
-        neglogp_per_step = -torch.nansum(probs * log_probs, dim=2)
+        ideal_probs_train = torch.eye(self.n_choices)[actions_train]
+        neglogp_per_step = -torch.nansum(ideal_probs_train * log_probs, dim=2)
         neglogp = torch.sum(neglogp_per_step * mask_length, dim=0)
         loss_gp = torch.mean((rewards_train - rewards_min) * neglogp)
 
@@ -117,7 +119,7 @@ class PhySO(pl.LightningModule):
 
         return loss_gp + loss_entropy
 
-    def train_step(self, batch, batch_idx):
+    def compute(self):
         # get size and max length
         self.batch = self.batch_resetter()
 
@@ -126,7 +128,7 @@ class PhySO(pl.LightningModule):
         states = self.model.get_zeros_initial_state(self.batch_size)
 
         # run recurrent neural network
-        for i in range(self.max_time_step):
+        for _ in range(self.max_time_step):
             logit, action, states = self.time_step(states)
             logits.append(logit)
             actions.append(action)
@@ -140,10 +142,12 @@ class PhySO(pl.LightningModule):
 
         return loss
 
-    def predict_step(self, batch, batch_idx):
-        return
+    def train_step(self, batch, batch_idx):
+        loss = self.compute()
+        self.log("val_loss", loss)
+        return loss
 
-    def validation_step(self, batch, batch_idx):
+    def predict_step(self, batch, batch_idx):
         return
 
     def configure_optimizers(self):
