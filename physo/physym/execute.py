@@ -61,13 +61,13 @@ def ExecuteProgram(input_var_data, program_tokens, free_const_values=None):
             elif token.var_type == 2:
                 if free_const_values is not None:
                     # curr_stack.append(torch.abs(free_const_values[token.var_id])) # Making free const positive values only #abs_free_const
-                    curr_stack.append(free_const_values[token.var_id])
+                    curr_stack.append(torch.tensor(free_const_values[token.var_id]))
                 else:
                     raise ValueError("Free constant encountered in program evaluation but free constant values were "
                                      "not given.")
             # Fixed constant (eg. pi, 1 etc.)
             elif token.var_type == 3:
-                curr_stack.append(token.fixed_const)
+                curr_stack.append(torch.tensor(token.fixed_const))
             else:
                 raise NotImplementedError("Token of unknown var_type encountered in ExecuteProgram.")
         # Non-terminal token

@@ -842,6 +842,7 @@ def make_PriorCollection(
     type_err_msg = "priors_config should be a list containing couples with prior name string as first item in couple " \
                    "and additional arguments to be passed to priors dictionary as second item of couple, leave None " \
                    "for priors that do not require arguments."
+    
     # Assertion
     assert isinstance(priors_config, list), type_err_msg
     # PriorCollection

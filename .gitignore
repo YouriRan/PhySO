@@ -7,3 +7,5 @@ demo/**/*.log
 demo/**/*.png
 demo/**/*.csv
 demo/**/*.pdf
+**/lightning_logs
+build

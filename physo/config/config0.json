@@ -10,7 +10,7 @@
     "learning_config": {
         "batch_size": 1000,
         "max_time_step": 35,
-        "n_epochs": 1000000000,
+        "n_epochs": 10,
         "gamma_decay": 0.7,
         "entropy_weight": 5e-3,
         "risk_factor": 5e-2,
@@ -31,32 +31,34 @@
             }
         }
     },
-    "priors_config": {
-        "UniformArityPrior": null,
-        "HardLengthPrior": {
+    "priors_config": [
+        [
+            "HardLengthPrior",
+            {
             "min_length": 4,
             "max_length": 35
-        },
-        "SoftLengthPrior": {
-            "length_loc": 8,
-            "scale": 5
-        },
-        "NoUselessInversePrior": null,
-        "PhysicalUnitsPrior": {
-            "prob_eps": "eps"
-        },
-        "NestedFunctions": {
-            "functions": [
-                "exp",
-                "log"
-            ],
-            "max_nesting": 1
-        },
-        "NestedTrigonometryPrior": {
-            "max_nesting": 1
-        },
-        "OccurrencesPrior": null
-    },
+            }
+        ],
+        [
+            "SoftLengthPrior",
+            {
+                "length_loc": 8,
+                "scale": 5
+            }
+        ],
+        [
+            "PhysicalUnitsPrior",
+            {
+                "prob_eps": 1e-7
+            }
+        ],
+        [
+            "NestedTrigonometryPrior",
+            {
+                "max_nesting": 1
+            }
+        ]
+    ],
     "cell_config": {
         "hidden_size": 128,
         "n_layers": 1,
@@ -70,20 +72,22 @@
                 "sub",
                 "div",
                 "inv",
-                "neg"
+                "neg",
+                "cos",
+                "sin"
             ],
             "use_protected_ops": true,
-            "input_vars": {
+            "input_var_ids": {
                 "p": 0
             },
-            "input_vars_units": {
+            "input_var_units": {
                 "p": [
                     -2,
                     0,
                     1
                 ]
             },
-            "input_vars_complexity": {
+            "input_var_complexity": {
                 "p": 1.0
             },
             "constants": {
